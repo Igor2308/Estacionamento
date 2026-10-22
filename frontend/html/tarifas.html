@@ -1,0 +1,14 @@
+<!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tarifas • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><main><h1>Tarifas</h1>
+<div class="card"><h2>Nova tarifa</h2>
+<p class="vazio" style="padding:0 0 .6rem">Sem tarifa cadastrada não dá para registrar a saída de horistas nem a mensalidade. Cada tipo de veículo tem a sua tarifa. Ao cadastrar uma nova, a anterior do mesmo tipo é encerrada no dia anterior ao início da nova.</p>
+<form class="linha" id="form">
+<label>Tipo de veículo<select name="tipo_veiculo" required><option value="">Selecione...</option><option value="CARRO">Carro</option><option value="MOTO">Moto</option><option value="VAN">Van</option><option value="CAMINHAO">Caminhão</option><option value="OUTRO">Outro</option></select></label>
+<label>Valor de cada período de 30 min (R$)<input name="valor_periodo_30_min" inputmode="decimal" required placeholder="5,00"></label>
+<label>Mensalidade por vaga (R$)<input name="mensalidade_por_vaga" inputmode="decimal" required placeholder="300,00"></label>
+<label>Vigência a partir de<input type="date" name="vigencia_inicio" id="inicio" required></label>
+<button>Cadastrar tarifa</button></form></div>
+<div class="card"><h2>Tarifas cadastradas</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Veículo</th><th>Início</th><th>Fim</th><th>Período 30 min</th><th>Mensalidade / vaga</th><th>Situação</th></tr></thead><tbody id="lista"></tbody></table></div></div></main>
+<script src="../js/main.js"></script><script src="../js/tarifas.js"></script></body></html>

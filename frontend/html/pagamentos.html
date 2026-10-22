@@ -1,0 +1,18 @@
+<!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pagamentos • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><main><h1>Pagamentos</h1>
+<div class="card"><h2>Registrar pagamento recebido</h2><form class="linha" id="form">
+<label>Tipo<select name="tipo_pagamento" id="tipo"><option value="HORISTA">Horista (saída)</option><option value="MENSALIDADE">Mensalidade</option><option value="OUTRO">Outro</option></select></label>
+<label data-t="HORISTA">Saída a pagar<select name="id_movimentacao" id="mov"></select></label>
+<label data-t="MENSALIDADE">Mensalidade em aberto<select name="id_cobranca" id="cob"></select></label>
+<label data-t="OUTRO">Cliente (opcional)<select name="id_cliente" id="cliOutro"></select></label>
+<label data-t="OUTRO">Valor (R$)<input name="valor_pago" inputmode="decimal" placeholder="0,00"></label>
+<label>Forma<select name="forma_pagamento"><option value="PIX">Pix</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO_DEBITO">Cartão de débito</option><option value="CARTAO_CREDITO">Cartão de crédito</option><option value="TRANSFERENCIA">Transferência</option><option value="OUTRO">Outro</option></select></label>
+<label>Observação<input name="observacao" maxlength="255"></label>
+<button>Registrar</button></form>
+<p id="dica" class="vazio"></p></div>
+<div class="card"><h2>Mensalidades em aberto</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Cliente</th><th>Vaga</th><th>Competência</th><th>Valor</th><th></th></tr></thead><tbody id="abertas"></tbody></table></div></div>
+<div class="card"><h2>Pagamentos registrados</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Data</th><th>Tipo</th><th>Cliente / placa</th><th>Competência</th><th>Forma</th><th>Valor</th></tr></thead><tbody id="lista"></tbody></table></div></div></main>
+<script src="../js/main.js"></script><script src="../js/pagamentos.js"></script></body></html>

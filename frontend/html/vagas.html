@@ -1,0 +1,11 @@
+<!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vagas • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><main><h1>Vagas</h1>
+<div class="card"><h2>Nova vaga</h2><form class="linha" id="form">
+<label>Código<input name="codigo" required placeholder="A01"></label><label>Setor<input name="setor"></label>
+<label>Tipo<select name="tipo_vaga"><option value="ROTATIVA">Rotativa (horistas)</option><option value="MENSALISTA">Mensalista (reservada)</option></select></label>
+<label>Veículo da vaga<select name="tipo_veiculo" required><option value="">Selecione...</option><option value="CARRO">Carro</option><option value="MOTO">Moto</option><option value="VAN">Van</option><option value="CAMINHAO">Caminhão</option><option value="OUTRO">Outro</option></select></label>
+<button>Cadastrar</button></form></div>
+<div class="card"><h2>Vagas cadastradas</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Código</th><th>Setor</th><th>Tipo</th><th>Veículo</th><th>Cliente vinculado</th><th>Status</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div></div></main>
+<script src="../js/main.js"></script><script src="../js/vagas.js"></script></body></html>

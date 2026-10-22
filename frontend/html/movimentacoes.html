@@ -1,0 +1,17 @@
+<!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entradas e saídas • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><main><h1>Entradas e saídas</h1>
+<div class="card"><h2>Registrar entrada (horistas)</h2><form class="linha" id="form">
+<label>Placa (somente cadastradas)<input name="placa" required maxlength="8" placeholder="ABC1D23" list="placas" autocomplete="off" autofocus style="text-transform:uppercase"></label><datalist id="placas"></datalist><button>Registrar entrada</button></form>
+<p class="vazio" style="padding:.6rem 0 0">A entrada só é aceita para placas cadastradas. Mensalistas usam a vaga como quiserem e não registram entrada.</p></div>
+<div class="card"><h2>Registrar saída</h2>
+<div class="abas"><button type="button" class="ativa" id="abaHorista">Horistas</button><button type="button" id="abaMensalista">Mensalistas</button></div>
+<div id="painelHorista"><div class="tabela-rolagem"><table>
+<thead><tr><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Entrada</th><th>Tempo</th><th></th></tr></thead><tbody id="abertas"></tbody></table></div></div>
+<div id="painelMensalista" class="oculto">
+<p class="vazio" style="padding:0 0 .6rem">A saída de um mensalista <b>cancela o plano daquela vaga</b>, uma vaga por vez. Só é possível quando não há mensalidade em aberto na tela <a href="pagamentos.html">Pagamentos</a>. Ao cancelar a última vaga do cliente, ele passa a ser horista.</p>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Cliente</th><th>Vaga</th><th>Veículo</th><th>Em aberto</th><th></th></tr></thead><tbody id="mensalistas"></tbody></table></div></div></div>
+<div class="card"><h2>Histórico</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Placa</th><th>Cliente</th><th>Entrada</th><th>Saída</th><th>Períodos</th><th>Valor</th></tr></thead><tbody id="historico"></tbody></table></div></div></main>
+<script src="../js/main.js"></script><script src="../js/movimentacoes.js"></script></body></html>

@@ -1,0 +1,44 @@
+<!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clientes • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><main><h1>Clientes</h1>
+<div class="card"><h2 id="tituloForm">Novo cliente</h2>
+<p class="vazio" style="padding:0 0 .6rem" id="dicaForm">Todos os campos são obrigatórios, exceto o e-mail (e o complemento do endereço). O cliente é salvo junto com o endereço.</p>
+<form id="form" novalidate>
+<div class="linha" style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:flex-end">
+<label>Nome *<input name="nome" required></label>
+<label>Tipo *<select name="tipo_pessoa" id="tipo" required><option value="FISICA">Pessoa física</option><option value="JURIDICA">Pessoa jurídica</option></select></label>
+<label><span id="rotuloDoc">CPF</span> *<input name="documento" required placeholder="somente números"></label>
+<label>Telefone *<input name="telefone" required placeholder="(00) 00000-0000"></label>
+<label>E-mail (opcional)<input name="email" type="email"></label>
+<label>Modalidade *<select name="modalidade" required><option value="HORISTA">Horista</option><option value="MENSALISTA">Mensalista</option></select></label>
+</div>
+<fieldset id="blocoEndereco" style="margin-top:1rem;border:1px solid var(--borda);border-radius:8px;padding:.8rem">
+<legend>Endereço</legend>
+<div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:flex-end">
+<label>Tipo *<select name="end_tipo_endereco"><option value="RESIDENCIAL">Residencial</option><option value="COMERCIAL">Comercial</option><option value="COBRANCA">Cobrança</option><option value="OUTRO">Outro</option></select></label>
+<label>CEP *<input name="end_cep" maxlength="9" placeholder="00000-000" required></label>
+<label>Logradouro *<input name="end_logradouro" required></label>
+<label>Nº *<input name="end_numero" required size="5"></label>
+<label>Compl.<input name="end_complemento" size="10"></label>
+<label>Bairro *<input name="end_bairro" required></label>
+<label>Cidade *<input name="end_cidade" required></label>
+<label>UF *<input name="end_estado" required maxlength="2" size="2" style="text-transform:uppercase"></label>
+</div></fieldset>
+<div style="margin-top:1rem;display:flex;gap:.7rem"><button id="salvar">Salvar cliente</button><button type="button" class="sec oculto" id="cancelar">Cancelar edição</button></div>
+</form></div>
+<div class="card"><h2>Cadastrados</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Nome</th><th>Tipo</th><th>Documento</th><th>Telefone</th><th>Modalidade</th><th>Status</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div></div>
+
+<div class="card oculto" id="detalhe"><h2 id="tituloDetalhe"></h2>
+<h3>Veículos <a href="veiculos.html" style="font-size:.85rem;font-weight:normal">→ cadastrar veículo na tela Veículos</a></h3>
+<div class="tabela-rolagem"><table><thead><tr><th>Placa</th><th>Tipo</th><th>Marca / modelo / cor</th><th>Status</th></tr></thead><tbody id="veiculos"></tbody></table></div>
+<h3>Endereços</h3>
+<form class="linha" id="formEndereco">
+<label>Tipo<select name="tipo_endereco"><option value="RESIDENCIAL">Residencial</option><option value="COMERCIAL">Comercial</option><option value="COBRANCA">Cobrança</option><option value="OUTRO">Outro</option></select></label>
+<label>CEP<input name="cep" maxlength="9" required></label><label>Logradouro<input name="logradouro" required></label>
+<label>Nº<input name="numero" required size="5"></label><label>Compl.<input name="complemento" size="8"></label>
+<label>Bairro<input name="bairro" required></label><label>Cidade<input name="cidade" required></label><label>UF<input name="estado" required maxlength="2" size="2"></label>
+<label style="flex-direction:row;align-items:center;gap:.4rem"><input type="checkbox" name="principal"> Principal</label><button id="salvarEnd">Adicionar outro endereço</button><button type="button" class="sec oculto" id="cancelarEnd">Cancelar edição</button></form>
+<div class="tabela-rolagem"><table><thead><tr><th>Endereço</th><th>Tipo</th><th></th></tr></thead><tbody id="enderecos"></tbody></table></div>
+</div></main>
+<script src="../js/main.js"></script><script src="../js/clientes.js"></script></body></html>

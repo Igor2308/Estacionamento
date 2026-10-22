@@ -1,0 +1,4 @@
+body{display:flex;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,#1e3a8a,#2563eb 55%,#60a5fa)}
+.caixa{background:#fff;border:1px solid var(--borda);border-radius:16px;padding:2rem;width:min(360px,92vw);box-shadow:0 12px 36px #0003}
+.caixa h1{text-align:center;color:var(--azul);margin-bottom:1.2rem}
+.caixa label{margin-bottom:.9rem}.caixa button{width:100%;padding:.65rem}

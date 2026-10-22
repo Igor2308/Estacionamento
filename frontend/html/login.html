@@ -1,0 +1,21 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login • Estacionamento</title><link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/login.css"></head>
+<body><form class="caixa" id="f"><h1>🅿️ Estacionamento</h1>
+<label>Login<input name="login" autocomplete="username" required autofocus></label>
+<label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
+<button>Entrar</button></form>
+<script src="../js/main.js"></script>
+<script>
+// Chegar nesta tela (inclusive pela seta "voltar") encerra qualquer sessão: é preciso entrar de novo.
+function limparSessao() {
+  sessionStorage.removeItem("sessao_ativa");
+  fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {});
+}
+limparSessao();
+addEventListener("pageshow", e => { if (e.persisted) { limparSessao(); document.getElementById("f").reset(); } });
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault();
+  const ok = await acao(() => api("/auth/login", { metodo: "POST", corpo: formParaObjeto(e.target) }));
+  if (ok) { sessionStorage.setItem("sessao_ativa", "1"); location.href = "dashboard.html"; }
+};
+</script></body></html>

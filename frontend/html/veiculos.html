@@ -1,0 +1,17 @@
+<!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Veículos • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><main><h1>Veículos</h1>
+<div class="card"><h2 id="tituloForm">Novo veículo</h2>
+<p class="vazio" style="padding:0 0 .6rem">Todos os campos são obrigatórios. Marca, modelo e cor são escolhidos nas listas; se não existir, use <b>+ Nova</b> para cadastrar e depois ela já fica selecionada.</p>
+<form class="linha" id="form" novalidate>
+<label>Cliente *<select name="id_cliente" id="cliente" required></select></label>
+<label>Placa *<input name="placa" id="placa" required maxlength="8" placeholder="ABC1D23" style="text-transform:uppercase"></label>
+<label>Tipo *<select name="tipo_veiculo" id="tipo"><option value="CARRO">Carro</option><option value="MOTO">Moto</option><option value="VAN">Van</option><option value="CAMINHAO">Caminhão</option><option value="OUTRO">Outro</option></select></label>
+<label>Marca *<span class="par"><select id="marca" required></select><button type="button" class="sec" id="novaMarca">+ Nova</button></span></label>
+<label>Modelo *<span class="par"><select id="modelo" required></select><button type="button" class="sec" id="novoModelo">+ Nova</button></span></label>
+<label>Cor *<span class="par"><select id="cor" required></select><button type="button" class="sec" id="novaCor">+ Nova</button></span></label>
+<button id="salvar">Salvar veículo</button><button type="button" class="sec oculto" id="cancelar">Cancelar edição</button></form></div>
+
+<div class="card"><h2>Cadastrados</h2><div class="tabela-rolagem"><table>
+<thead><tr><th>Placa</th><th>Cliente</th><th>Tipo</th><th>Marca / modelo</th><th>Cor</th><th>Status</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div></div></main>
+<script src="../js/main.js"></script><script src="../js/veiculos.js"></script></body></html>
