@@ -1,6 +1,8 @@
 
 from flask import Blueprint, jsonify, request
 
+from utils.paginacao import ler_pagina
+
 from controllers.vagas_controller import (
     listar_vagas,
     cadastrar_vaga,
@@ -14,7 +16,14 @@ vagas_bp = Blueprint("vagas", __name__, url_prefix="/api/vagas")
 
 @vagas_bp.route("", methods=["GET"])
 def listar():
-    resultado, status = listar_vagas()
+    ativa = request.args.get("ativa")
+    resultado, status = listar_vagas(
+        pagina=ler_pagina(request.args.get("pagina")),
+        busca=request.args.get("busca"),
+        tipo_vaga=request.args.get("tipo_vaga"),
+        livres=request.args.get("livres") in ("1", "true", "True"),
+        ativa=None if ativa is None else ativa in ("1", "true", "True"),
+    )
     return jsonify(resultado), status
 
 

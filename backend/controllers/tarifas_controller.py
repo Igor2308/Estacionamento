@@ -4,22 +4,31 @@ from decimal import Decimal, InvalidOperation
 from config.database import conectar_banco
 from services.tarifas_service import recalcular_vigencias
 from utils.auth import usuario_atual
+from utils.paginacao import executar_paginado
 from utils.validators import TIPOS_VEICULO, validar_data
 
 
-def listar_tarifas():
-    """Lista as tarifas, da mais recente para a mais antiga."""
+def listar_tarifas(pagina=None):
+    """Lista as tarifas, da mais recente para a mais antiga (paginado quando `pagina` é informada)."""
     conexao = conectar_banco()
     cursor = None
     try:
         cursor = conexao.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT *, (vigencia_inicio <= CURRENT_DATE
-                       AND (vigencia_fim IS NULL OR vigencia_fim >= CURRENT_DATE)) AS vigente
-            FROM configuracoes_tarifas
-            ORDER BY vigencia_inicio DESC, tipo_veiculo, id_tarifa DESC
-        """)
-        return {"dados": cursor.fetchall()}, 200
+        sql = """
+            SELECT t.*,
+                   (t.vigencia_inicio <= CURRENT_DATE
+                    AND (t.vigencia_fim IS NULL OR t.vigencia_fim >= CURRENT_DATE)) AS vigente,
+                   uc.nome AS cadastrado_por_nome,
+                   ua.nome AS atualizado_por_nome
+            FROM configuracoes_tarifas t
+            LEFT JOIN usuarios uc ON uc.id_usuario = t.cadastrado_por
+            LEFT JOIN usuarios ua ON ua.id_usuario = t.atualizado_por
+            WHERE 1 = 1
+        """
+        return executar_paginado(
+            cursor, sql, (),
+            "t.vigencia_inicio DESC, t.tipo_veiculo, t.id_tarifa DESC", pagina,
+            sql_total="SELECT COUNT(*) AS total FROM configuracoes_tarifas"), 200
     finally:
         if cursor:
             cursor.close()

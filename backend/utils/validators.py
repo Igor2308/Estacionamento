@@ -53,12 +53,49 @@ def validar_data(texto):
 
 
 def validar_telefone(telefone):
-    """Telefone brasileiro com DDD: 10 ou 11 dígitos."""
-    return len(somente_digitos(telefone)) in (10, 11)
+    """Telefone brasileiro com DDD: 10 ou 11 dígitos, sem letras (celular de 11 dígitos começa com 9)."""
+    if not isinstance(telefone, str) or re.search(r"[^\d\s()\-+]", telefone):
+        return False
+    d = somente_digitos(telefone)
+    if len(d) not in (10, 11) or not ("11" <= d[:2] <= "99"):
+        return False
+    return len(d) == 10 or d[2] == "9"
 
 
 def validar_cep(cep):
-    return len(somente_digitos(cep)) == 8
+    """CEP brasileiro: 8 dígitos (aceita 00000-000), sem letras."""
+    return isinstance(cep, str) and re.fullmatch(r"\d{5}-?\d{3}", cep.strip()) is not None
+
+
+def formatar_cep(cep):
+    d = somente_digitos(cep)
+    return f"{d[:5]}-{d[5:]}" if len(d) == 8 else (cep or "").strip()
+
+
+def so_formatacao(valor, permitidos=r"\d.\-/\s"):
+    """True se o texto só tem dígitos e os símbolos de formatação informados (sem letras)."""
+    return isinstance(valor, str) and re.fullmatch(rf"[{permitidos}]*", valor) is not None
+
+
+UFS = (
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",
+    "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+)
+
+
+def validar_uf(uf):
+    return isinstance(uf, str) and uf.strip().upper() in UFS
+
+
+_LETRAS = re.compile(r"^[^\W\d_]+(?:[ '.\-][^\W\d_]+)*\.?$", re.UNICODE)
+
+
+def validar_somente_letras(texto, minimo=2, maximo=100):
+    """Texto só com letras (acentos ok), espaços, apóstrofo, ponto e hífen — sem números."""
+    if not isinstance(texto, str):
+        return False
+    texto = " ".join(texto.split())
+    return minimo <= len(texto) <= maximo and _LETRAS.match(texto) is not None
 
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")

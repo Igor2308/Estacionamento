@@ -2,6 +2,7 @@ from mysql.connector import IntegrityError
 
 from config.database import conectar_banco
 from utils.auth import usuario_atual
+from utils.paginacao import escapar_like, executar_paginado, padrao_busca
 from utils.validators import TIPOS_VEICULO, normalizar_placa, validar_placa
 
 # Colunas devolvidas nas consultas (nomes de marca/modelo/cor vêm das listas cadastradas).
@@ -12,12 +13,16 @@ _SELECT = """
         c.modalidade AS modalidade_cliente,
         ma.nome AS marca,
         mo.nome AS modelo,
-        co.nome AS cor
+        co.nome AS cor,
+        uc.nome AS cadastrado_por_nome,
+        ua.nome AS atualizado_por_nome
     FROM veiculos v
     JOIN clientes c ON c.id_cliente = v.id_cliente
     LEFT JOIN marcas ma ON ma.id_marca = v.id_marca
     LEFT JOIN modelos mo ON mo.id_modelo = v.id_modelo
     LEFT JOIN cores co ON co.id_cor = v.id_cor
+    LEFT JOIN usuarios uc ON uc.id_usuario = v.cadastrado_por
+    LEFT JOIN usuarios ua ON ua.id_usuario = v.atualizado_por
 """
 
 
@@ -49,18 +54,37 @@ def _validar_marca_modelo_cor(cursor, id_marca, id_modelo, id_cor):
     return None
 
 
-def listar_veiculos(id_cliente=None):
-    """Lista os veículos junto com os nomes dos clientes, opcionalmente filtrados."""
+def listar_veiculos(id_cliente=None, pagina=None, busca=None, ativo=None, modalidade=None):
+    """Lista os veículos junto com os nomes dos clientes.
+
+    Com `pagina` traz só os 50 daquela página. busca: placa, nome do cliente ou CPF/CNPJ.
+    """
     conexao = conectar_banco()
     cursor = None
 
     try:
         cursor = conexao.cursor(dictionary=True)
+        sql = _SELECT + " WHERE 1 = 1"
+        params = []
         if id_cliente is not None:
-            cursor.execute(_SELECT + " WHERE v.id_cliente = %s ORDER BY v.placa", (id_cliente,))
-        else:
-            cursor.execute(_SELECT + " ORDER BY v.placa")
-        return {"dados": cursor.fetchall()}, 200
+            sql += " AND v.id_cliente = %s"
+            params.append(id_cliente)
+        if ativo is not None:
+            sql += " AND v.ativo = %s AND c.ativo = %s"
+            params += [bool(ativo), bool(ativo)]
+        if modalidade in ("MENSALISTA", "HORISTA"):
+            sql += " AND c.modalidade = %s"
+            params.append(modalidade)
+        texto, digitos = padrao_busca(busca)
+        if texto:
+            placa = f"%{escapar_like(normalizar_placa(busca))}%"
+            if digitos:
+                sql += " AND (v.placa LIKE %s OR c.nome LIKE %s OR c.cpf LIKE %s OR c.cnpj LIKE %s)"
+                params += [placa, texto, digitos, digitos]
+            else:
+                sql += " AND (v.placa LIKE %s OR c.nome LIKE %s)"
+                params += [placa, texto]
+        return executar_paginado(cursor, sql, tuple(params), "v.placa", pagina), 200
 
     finally:
         if cursor:

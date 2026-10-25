@@ -11,7 +11,9 @@ O que faz:
   4. cria a tabela de mensalidades (cobrancas_mensalidade) e gera uma mensalidade em aberto, a partir de hoje,
      para cada vaga mensalista que já estava vinculada a um cliente;
   5. recalcula o fim de vigência das tarifas (cada uma vale até a véspera da próxima do mesmo tipo);
-  6. se não existir NENHUMA tarifa, cadastra uma inicial para cada tipo de veículo,
+  6. adiciona o PAÍS nos endereços (os antigos ficam como "Brasil"), o valor recebido e o troco nos pagamentos
+     (para o controle do dinheiro físico) e um índice no nome do cliente (busca/paginação);
+  7. se não existir NENHUMA tarifa, cadastra uma inicial para cada tipo de veículo,
      que você pode ajustar depois na tela "Tarifas".
 
 Uso (dentro da pasta backend):  python atualizar_banco.py
@@ -169,6 +171,27 @@ def main():
         recalcular_vigencias(cd, tipo)
     cd.close()
     print("OK  vigências das tarifas recalculadas")
+
+    # País do endereço, valor recebido/troco do pagamento e índice de busca por nome.
+    if "pais" not in colunas(cur, "enderecos"):
+        cur.execute("ALTER TABLE enderecos ADD COLUMN pais VARCHAR(60) NOT NULL DEFAULT 'Brasil' AFTER estado")
+        print("OK  endereços agora têm país (os antigos ficaram como Brasil)")
+    else:
+        print("OK  endereços já têm país")
+
+    cols_pag = colunas(cur, "pagamentos")
+    if "valor_recebido" not in cols_pag:
+        cur.execute("ALTER TABLE pagamentos ADD COLUMN valor_recebido DECIMAL(10,2) NULL AFTER forma_pagamento, "
+                    "ADD COLUMN troco DECIMAL(10,2) NULL AFTER valor_recebido")
+        print("OK  pagamentos agora guardam valor recebido e troco (dinheiro)")
+    else:
+        print("OK  pagamentos já guardam valor recebido e troco")
+
+    cur.execute("SELECT COUNT(*) FROM information_schema.STATISTICS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clientes' AND INDEX_NAME = 'idx_clientes_nome'")
+    if cur.fetchone()[0] == 0:
+        cur.execute("ALTER TABLE clientes ADD INDEX idx_clientes_nome (nome)")
+        print("OK  índice de busca por nome de cliente")
 
     cur.execute("SELECT COUNT(*) FROM configuracoes_tarifas")
     if cur.fetchone()[0] == 0:

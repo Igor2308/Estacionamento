@@ -3,14 +3,34 @@ from mysql.connector import IntegrityError
 
 from config.database import conectar_banco
 from utils.auth import usuario_atual
+from utils.paginacao import executar_paginado, padrao_busca
 from utils.validators import (
-    somente_digitos, validar_cnpj, validar_cpf, validar_email, validar_telefone,
+    so_formatacao, somente_digitos, validar_cnpj, validar_cpf, validar_email,
+    validar_somente_letras, validar_telefone,
 )
 from controllers.enderecos_controller import _validar_endereco, inserir_endereco
+from controllers.vagas_controller import vincular_na_transacao
+
+import re
+
+_NOME_EMPRESA = re.compile(r"^(?=.*[^\W\d_])[\w &.,'/\-]{3,150}$", re.UNICODE)
+
+
+def _validar_nome(nome, tipo_pessoa):
+    """Pessoa física: só letras (sem números). Pessoa jurídica: aceita números e & . , - /"""
+    nome = " ".join(nome.split())
+    if tipo_pessoa == "JURIDICA":
+        if not _NOME_EMPRESA.match(nome):
+            return "Nome inválido (3 a 150 caracteres, com pelo menos uma letra)."
+    elif not validar_somente_letras(nome, 3, 150):
+        return "Nome inválido. Use somente letras (3 a 150 caracteres), sem números."
+    return None
 
 
 def _validar_documentos(tipo_pessoa, cpf, cnpj):
     """Normaliza (só dígitos) e valida CPF/CNPJ conforme o tipo de pessoa."""
+    if (cpf and not so_formatacao(str(cpf))) or (cnpj and not so_formatacao(str(cnpj))):
+        return None, None, "Documento inválido: use somente números."
     cpf = somente_digitos(cpf) or None
     cnpj = somente_digitos(cnpj) or None
 
@@ -32,19 +52,33 @@ def _validar_documentos(tipo_pessoa, cpf, cnpj):
     return cpf, cnpj, None
 
 
-def listar_clientes():
-    """Lista os clientes cadastrados."""
+def listar_clientes(pagina=None, busca=None, modalidade=None, ativo=None):
+    """Lista os clientes. Com `pagina` traz só os 50 daquela página (o resto carrega sob demanda).
+
+    busca: parte do nome ou do CPF/CNPJ (a busca por documento ignora pontos e traços).
+    """
     conexao = conectar_banco()
     cursor = None
 
     try:
         cursor = conexao.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT *
-            FROM clientes
-            ORDER BY nome
-        """)
-        return {"dados": cursor.fetchall()}, 200
+        sql = "SELECT * FROM clientes WHERE 1 = 1"
+        params = []
+        texto, digitos = padrao_busca(busca)
+        if texto:
+            if digitos:
+                sql += " AND (nome LIKE %s OR cpf LIKE %s OR cnpj LIKE %s)"
+                params += [texto, digitos, digitos]
+            else:
+                sql += " AND nome LIKE %s"
+                params.append(texto)
+        if modalidade in ("MENSALISTA", "HORISTA"):
+            sql += " AND modalidade = %s"
+            params.append(modalidade)
+        if ativo is not None:
+            sql += " AND ativo = %s"
+            params.append(bool(ativo))
+        return executar_paginado(cursor, sql, tuple(params), "nome, id_cliente", pagina), 200
 
     finally:
         if cursor:
@@ -109,6 +143,10 @@ def cadastrar_cliente(dados):
     if tipo_pessoa not in ("FISICA", "JURIDICA"):
         return {"erro": "Tipo de pessoa inválido."}, 400
 
+    erro_nome = _validar_nome(nome, tipo_pessoa)
+    if erro_nome:
+        return {"erro": erro_nome}, 400
+
     if modalidade not in ("MENSALISTA", "HORISTA"):
         return {"erro": "Informe a modalidade (mensalista ou horista)."}, 400
 
@@ -129,6 +167,21 @@ def cadastrar_cliente(dados):
     if erro_endereco:
         return {"erro": erro_endereco}, 400
 
+    # Vagas mensalistas escolhidas já no cadastro (quantas o cliente contratar): cliente, endereço
+    # e vagas entram juntos, ou nada entra. Aceita `id_vagas` (lista) ou `id_vaga` (uma só).
+    ids_vagas = dados.get("id_vagas")
+    if ids_vagas is None and dados.get("id_vaga") not in (None, ""):
+        ids_vagas = [dados.get("id_vaga")]
+    ids_vagas = ids_vagas if ids_vagas is not None else []
+    if not isinstance(ids_vagas, list) or len(ids_vagas) > 20 or any(
+        isinstance(i, bool) or not isinstance(i, int) or i <= 0 for i in ids_vagas
+    ):
+        return {"erro": "Vagas inválidas."}, 400
+    if len(set(ids_vagas)) != len(ids_vagas):
+        return {"erro": "A mesma vaga foi escolhida mais de uma vez."}, 400
+    if ids_vagas and modalidade != "MENSALISTA":
+        return {"erro": "Só clientes mensalistas podem ter vaga vinculada."}, 400
+
     conexao = conectar_banco()
     cursor = None
 
@@ -142,11 +195,11 @@ def cadastrar_cliente(dados):
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
-            nome.strip(),
+            " ".join(nome.split()),
             tipo_pessoa,
             cpf,
             cnpj,
-            dados["telefone"].strip(),
+            somente_digitos(dados["telefone"]),
             _texto(dados.get("email")) or None,
             modalidade,
             usuario_atual(),
@@ -157,12 +210,30 @@ def cadastrar_cliente(dados):
         # O primeiro endereço do cliente é sempre o principal.
         id_endereco = inserir_endereco(cursor, id_cliente, endereco, True)
 
+        mensagem = "Cliente e endereço cadastrados com sucesso."
+        if ids_vagas:
+            cursor_vaga = conexao.cursor(dictionary=True)
+            try:
+                for id_vaga in ids_vagas:
+                    erro, status = vincular_na_transacao(cursor_vaga, id_vaga, id_cliente)
+                    if erro:
+                        conexao.rollback()
+                        return {"erro": erro}, status
+            finally:
+                cursor_vaga.close()
+            mensagem = (
+                f"Cliente, endereço e {len(ids_vagas)} vaga(s) cadastrados. "
+                "A mensalidade já está em aberto na tela Pagamentos."
+            )
+
         conexao.commit()
 
         return {
-            "mensagem": "Cliente e endereço cadastrados com sucesso.",
+            "mensagem": mensagem,
             "id_cliente": id_cliente,
             "id_endereco": id_endereco,
+            "id_vagas": ids_vagas,
+            "id_vaga": ids_vagas[0] if ids_vagas else None,
         }, 201
 
     except IntegrityError:
@@ -183,6 +254,8 @@ def cadastrar_cliente(dados):
 
 def atualizar_cliente(id_cliente, dados):
     """Atualiza os dados permitidos de um cliente."""
+    # CPF/CNPJ e tipo de pessoa não mudam por aqui (se precisar, só direto no banco).
+    # Se o pedido trouxer esses campos, eles são conferidos mais abaixo: iguais aos atuais são ignorados.
     campos_permitidos = {
         "nome", "tipo_pessoa", "cpf", "cnpj",
         "telefone", "email", "modalidade",
@@ -214,14 +287,14 @@ def atualizar_cliente(id_cliente, dados):
         return {"erro": "Modalidade inválida."}, 400
 
     if "nome" in alteracoes:
-        alteracoes["nome"] = alteracoes["nome"].strip()
+        alteracoes["nome"] = " ".join(alteracoes["nome"].split())
 
     if "telefone" in alteracoes:
         if not _texto(alteracoes["telefone"]):
             return {"erro": "O telefone é obrigatório."}, 400
         if not validar_telefone(alteracoes["telefone"]):
             return {"erro": "Telefone inválido. Informe o DDD + número (10 ou 11 dígitos)."}, 400
-        alteracoes["telefone"] = alteracoes["telefone"].strip()
+        alteracoes["telefone"] = somente_digitos(alteracoes["telefone"])
 
     if "email" in alteracoes:
         if _texto(alteracoes["email"]) and not validar_email(alteracoes["email"]):
@@ -243,17 +316,25 @@ def atualizar_cliente(id_cliente, dados):
         if not atual:
             return {"erro": "Cliente não encontrado."}, 404
 
+        if "nome" in alteracoes:
+            erro_nome = _validar_nome(alteracoes["nome"], atual["tipo_pessoa"])
+            if erro_nome:
+                return {"erro": erro_nome}, 400
+
         if {"tipo_pessoa", "cpf", "cnpj"} & set(alteracoes):
-            efetivo = {**atual, **alteracoes}
-            cpf, cnpj, erro_doc = _validar_documentos(
-                efetivo["tipo_pessoa"], efetivo["cpf"], efetivo["cnpj"]
-            )
-            if erro_doc:
-                return {"erro": erro_doc}, 400
-            if "cpf" in alteracoes:
-                alteracoes["cpf"] = cpf
-            if "cnpj" in alteracoes:
-                alteracoes["cnpj"] = cnpj
+            # Documento e tipo de pessoa são imutáveis: só passam se forem iguais ao que já está salvo.
+            for campo in ("cpf", "cnpj"):
+                if campo in alteracoes:
+                    novo = somente_digitos(str(alteracoes[campo] or "")) or None
+                    if novo != atual[campo]:
+                        return {"erro": "O CPF/CNPJ do cliente não pode ser alterado."}, 400
+                    del alteracoes[campo]
+            if "tipo_pessoa" in alteracoes:
+                if alteracoes["tipo_pessoa"] != atual["tipo_pessoa"]:
+                    return {"erro": "O tipo de pessoa do cliente não pode ser alterado."}, 400
+                del alteracoes["tipo_pessoa"]
+            if not alteracoes:
+                return {"mensagem": "Nada a atualizar."}, 200
 
         cursor.close()
         cursor = conexao.cursor()

@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 
+from utils.paginacao import ler_pagina
+
 from controllers.clientes_controller import (
     listar_clientes,
     consultar_cliente,
@@ -13,7 +15,13 @@ clientes_bp = Blueprint("clientes", __name__, url_prefix="/api/clientes")
 
 @clientes_bp.route("", methods=["GET"])
 def listar():
-    resultado, status = listar_clientes()
+    ativo = request.args.get("ativo")
+    resultado, status = listar_clientes(
+        pagina=ler_pagina(request.args.get("pagina")),
+        busca=request.args.get("busca"),
+        modalidade=request.args.get("modalidade"),
+        ativo=None if ativo is None else ativo in ("1", "true", "True"),
+    )
     return jsonify(resultado), status
 
 

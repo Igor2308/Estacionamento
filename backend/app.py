@@ -15,6 +15,7 @@ from routes.tarifas_routes import tarifas_bp
 from routes.vagas_routes import vagas_bp
 from routes.movimentacoes_routes import movimentacoes_bp
 from routes.pagamentos_routes import pagamentos_bp
+from routes.dashboard_routes import dashboard_bp
 
 
 PAGINA_LOGIN = "/app/html/login.html"
@@ -97,6 +98,7 @@ def criar_app():
     app.register_blueprint(vagas_bp)
     app.register_blueprint(movimentacoes_bp)
     app.register_blueprint(pagamentos_bp)
+    app.register_blueprint(dashboard_bp)
 
     return app
 

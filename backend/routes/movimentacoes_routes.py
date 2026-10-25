@@ -1,6 +1,8 @@
 
 from flask import Blueprint, jsonify, request
 
+from utils.paginacao import ler_pagina
+
 from controllers.movimentacoes_controller import (
     listar_movimentacoes,
     listar_mensalistas,
@@ -17,13 +19,22 @@ movimentacoes_bp = Blueprint(
 
 @movimentacoes_bp.route("", methods=["GET"])
 def listar():
-    resultado, status = listar_movimentacoes()
+    resultado, status = listar_movimentacoes(
+        pagina=ler_pagina(request.args.get("pagina")),
+        busca=request.args.get("busca"),
+        fechadas=request.args.get("fechadas") in ("1", "true", "True"),
+    )
     return jsonify(resultado), status
 
 
 @movimentacoes_bp.route("/abertas", methods=["GET"])
 def listar_abertas():
-    resultado, status = listar_movimentacoes_abertas()
+    resultado, status = listar_movimentacoes_abertas(
+        pagina=ler_pagina(request.args.get("pagina")),
+        busca=request.args.get("busca"),
+        apenas_horistas=request.args.get("apenas_horistas") in ("1", "true", "True"),
+        apenas_mensalistas=request.args.get("apenas_mensalistas") in ("1", "true", "True"),
+    )
     return jsonify(resultado), status
 
 
@@ -42,7 +53,10 @@ def saida(id_movimentacao):
 
 @movimentacoes_bp.route("/mensalistas", methods=["GET"])
 def mensalistas():
-    resultado, status = listar_mensalistas()
+    resultado, status = listar_mensalistas(
+        pagina=ler_pagina(request.args.get("pagina")),
+        busca=request.args.get("busca"),
+    )
     return jsonify(resultado), status
 
 
