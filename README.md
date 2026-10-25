@@ -43,8 +43,20 @@ Abra **http://127.0.0.1:5000/app/html/login.html**
 2. **Vagas** – cadastre as vagas rotativas e as mensalistas, informando para qual tipo de veículo cada uma serve.
 3. **Clientes** – todos os campos são obrigatórios (menos e-mail e complemento) e o endereço é salvo junto.
 4. **Veículos** – escolha o cliente; marca, modelo e cor vêm de listas (use **+ Nova** para cadastrar o que faltar).
-5. **Entradas e saídas** – a entrada (horistas) só aceita placas cadastradas e usa as vagas rotativas do tipo do veículo. A saída tem duas abas: **Horistas** (calcula o valor) e **Mensalistas** (a saída cancela o plano mensal: libera as vagas e o cliente vira horista). Mensalistas não registram entrada; a aba Mensalistas cancela o plano **vaga por vaga**, e só quando não há mensalidade em aberto.
-6. **Pagamentos** – horista (após a saída), mensalidade ou outro. Ao vincular uma vaga a um mensalista a mensalidade já nasce em aberto (e uma nova a cada mês); é só escolher qual pagar.
+5. **Entradas e saídas** – a entrada só aceita placas cadastradas. **Horista** usa as vagas rotativas do tipo do veículo e a saída calcula o valor. **Mensalista** precisa ter vaga vinculada para o tipo do veículo e **cada vaga comporta um veículo do cliente por vez** (com 2 vagas de carro entram 2 carros; o terceiro é barrado até um sair). A saída do mensalista só libera a vaga, sem cobrança. A aba *Cancelar plano mensal* encerra o plano **vaga por vaga**, e só quando não há mensalidade em aberto e o veículo não está no estacionamento.
+6. **Pagamentos** – horista (após a saída), mensalidade ou outro. Ao vincular vagas a um mensalista a mensalidade de cada vaga já nasce em aberto (e novas a cada mês); o cliente paga **de uma vez o valor de todas as vagas do mesmo período** (2 vagas = 2 mensalidades somadas). Em dinheiro, informa-se o valor recebido e o troco é calculado.
+
+## Como as telas se comportam
+
+- **Formulários em sequência:** em cada cadastro só o primeiro campo começa habilitado; o próximo só libera quando o anterior estiver válido, e o erro aparece embaixo do próprio campo. Telefone, CPF/CNPJ, CEP, UF e número só aceitam o que faz sentido (sem letras onde não pode) e têm tamanho máximo. A mesma validação existe no servidor.
+- **CEP:** no Brasil, ao digitar um CEP válido o endereço é buscado no ViaCEP (a tela precisa de internet; sem ela, o endereço é digitado à mão). O endereço tem o campo **País**.
+- **Listas paginadas:** 50 registros por página; só a página pedida é carregada. Há campo de busca acima de cada lista (clientes: nome ou CPF/CNPJ; veículos: placa, cliente ou CPF; vagas: código, setor ou cliente…). As rotas de listagem sem `?pagina=` continuam devolvendo tudo.
+- **Cliente mensalista:** ao escolher "Mensalista" informa-se a **quantidade de vagas** e seleciona-se cada uma (só vagas livres) já no cadastro; a mensalidade de todas fica em aberto em Pagamentos.
+- **Painel inicial:** botões de ação no topo (novo cliente, novo veículo, nova vaga, registrar entrada, registrar saída, pagamento), números do dia e os cinco tipos de veículo na mesma linha. Vaga de mensalista só conta como ocupada quando há veículo dentro.
+- **Edição de cliente:** dados e endereços abrem juntos no topo; CPF/CNPJ e tipo de pessoa não são editáveis (só direto no banco).
+- **Avisos e confirmações** usam modais (nada de alert/confirm/prompt do navegador).
+- **Quem registrou e quando** aparece nas listas de veículos, vagas, entradas/saídas, tarifas e pagamentos (o log completo fica para depois).
+- **Pagamento em dinheiro:** informa-se o valor recebido; o troco é calculado, guardado, e a tela mostra o dinheiro físico do dia (recebido, troco devolvido, ficou no caixa).
 
 ## Testes
 ```bash

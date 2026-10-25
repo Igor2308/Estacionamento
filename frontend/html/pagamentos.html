@@ -1,18 +1,34 @@
 <!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pagamentos • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
 <body><main><h1>Pagamentos</h1>
-<div class="card"><h2>Registrar pagamento recebido</h2><form class="linha" id="form">
-<label>Tipo<select name="tipo_pagamento" id="tipo"><option value="HORISTA">Horista (saída)</option><option value="MENSALIDADE">Mensalidade</option><option value="OUTRO">Outro</option></select></label>
-<label data-t="HORISTA">Saída a pagar<select name="id_movimentacao" id="mov"></select></label>
-<label data-t="MENSALIDADE">Mensalidade em aberto<select name="id_cobranca" id="cob"></select></label>
-<label data-t="OUTRO">Cliente (opcional)<select name="id_cliente" id="cliOutro"></select></label>
-<label data-t="OUTRO">Valor (R$)<input name="valor_pago" inputmode="decimal" placeholder="0,00"></label>
-<label>Forma<select name="forma_pagamento"><option value="PIX">Pix</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO_DEBITO">Cartão de débito</option><option value="CARTAO_CREDITO">Cartão de crédito</option><option value="TRANSFERENCIA">Transferência</option><option value="OUTRO">Outro</option></select></label>
-<label>Observação<input name="observacao" maxlength="255"></label>
-<button>Registrar</button></form>
+<div class="card"><h2>Dinheiro físico hoje</h2>
+<div class="caixa-dia" id="caixaDia"></div>
+<p class="vazio" style="padding:.2rem 0 0;font-size:.8rem">Considera só os pagamentos em dinheiro de hoje: quanto o cliente entregou, quanto voltou de troco e quanto realmente ficou no caixa.</p></div>
+
+<div class="card"><h2>Registrar pagamento recebido</h2>
+<form id="form" novalidate autocomplete="off"><div class="linha-campos">
+<label>Tipo *<select name="tipo_pagamento" id="tipo"><option value="HORISTA">Horista (saída)</option><option value="MENSALIDADE">Mensalidade</option><option value="OUTRO">Outro</option></select></label>
+<label id="caixaMov" class="largo">Saída a pagar *<div id="comboMov"></div></label>
+<label id="caixaCob" class="largo">Mensalidade em aberto *<div id="comboCob"></div></label>
+<label id="caixaCli" class="largo">Cliente <span class="rotulo-opcional">(opcional)</span><div id="comboCli"></div></label>
+<label id="caixaValor">Valor (R$) *<input id="valor" inputmode="decimal" placeholder="0,00"></label>
+<label>Forma *<select name="forma_pagamento" id="forma"><option value="PIX">Pix</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO_DEBITO">Cartão de débito</option><option value="CARTAO_CREDITO">Cartão de crédito</option><option value="TRANSFERENCIA">Transferência</option><option value="OUTRO">Outro</option></select></label>
+<label id="caixaRecebido">Valor recebido do cliente (R$) *<input id="recebido" inputmode="decimal" placeholder="0,00"></label>
+<div class="troco-box oculto" id="trocoBox"><small id="trocoLinha">Troco a devolver</small><b id="trocoValor">R$ 0,00</b></div>
+<label>Observação <span class="rotulo-opcional">(opcional)</span><input id="obs" maxlength="255"></label>
+</div>
+<div style="margin-top:1rem"><button id="salvar" disabled>Registrar</button></div></form>
 <p id="dica" class="vazio"></p></div>
-<div class="card"><h2>Mensalidades em aberto</h2><div class="tabela-rolagem"><table>
-<thead><tr><th>Cliente</th><th>Vaga</th><th>Competência</th><th>Valor</th><th></th></tr></thead><tbody id="abertas"></tbody></table></div></div>
-<div class="card"><h2>Pagamentos registrados</h2><div class="tabela-rolagem"><table>
-<thead><tr><th>Data</th><th>Tipo</th><th>Cliente / placa</th><th>Competência</th><th>Forma</th><th>Valor</th></tr></thead><tbody id="lista"></tbody></table></div></div></main>
-<script src="../js/main.js"></script><script src="../js/pagamentos.js"></script></body></html>
+
+<div class="card"><h2>Mensalidades em aberto</h2>
+<div class="busca"><input id="buscaAbertas" type="search" placeholder="Buscar por cliente, CPF/CNPJ ou vaga…" aria-label="Buscar mensalidades" autocomplete="off"></div>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Cliente</th><th>Vaga(s)</th><th>Competência</th><th>Valor a pagar</th><th></th></tr></thead><tbody id="abertas"></tbody></table></div>
+<div id="pagAbertas"></div></div>
+
+<div class="card"><h2>Pagamentos registrados</h2>
+<div class="busca"><input id="buscaLista" type="search" placeholder="Buscar por cliente, CPF/CNPJ ou placa…" aria-label="Buscar pagamentos" autocomplete="off"></div>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Data</th><th>Tipo</th><th>Cliente / placa</th><th>Competência</th><th>Forma</th><th>Valor</th><th>Recebido / troco</th><th>Registrado por</th></tr></thead><tbody id="lista"></tbody></table></div>
+<div id="pagLista"></div></div></main>
+<script src="../js/main.js"></script><script src="../js/ui.js"></script><script src="../js/pagamentos.js"></script></body></html>

@@ -27,7 +27,8 @@ CREATE TABLE clientes (
     cadastrado_por BIGINT UNSIGNED NULL,
     atualizado_por BIGINT UNSIGNED NULL,
     CONSTRAINT fk_clientes_cadastrado_por FOREIGN KEY (cadastrado_por) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
-    CONSTRAINT fk_clientes_atualizado_por FOREIGN KEY (atualizado_por) REFERENCES usuarios(id_usuario) ON DELETE SET NULL
+    CONSTRAINT fk_clientes_atualizado_por FOREIGN KEY (atualizado_por) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+    INDEX idx_clientes_nome (nome)
 );
 
 CREATE TABLE enderecos (
@@ -41,6 +42,7 @@ CREATE TABLE enderecos (
     bairro VARCHAR(100) NULL,
     cidade VARCHAR(100) NOT NULL,
     estado CHAR(2) NOT NULL,
+    pais VARCHAR(60) NOT NULL DEFAULT 'Brasil',
     principal BOOLEAN NOT NULL DEFAULT FALSE,
     cadastrado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -179,6 +181,9 @@ CREATE TABLE pagamentos (
     valor_unitario_aplicado DECIMAL(10,2) NULL,
     valor_pago DECIMAL(10,2) NOT NULL,
     forma_pagamento ENUM('DINHEIRO','PIX','CARTAO_CREDITO','CARTAO_DEBITO','TRANSFERENCIA','OUTRO') NOT NULL,
+    -- Só para DINHEIRO: quanto o cliente entregou e quanto de troco foi devolvido (controle do caixa físico).
+    valor_recebido DECIMAL(10,2) NULL,
+    troco DECIMAL(10,2) NULL,
     pago_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     observacao VARCHAR(255) NULL,
     cadastrado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -190,6 +195,7 @@ CREATE TABLE pagamentos (
     CONSTRAINT fk_pagamentos_cadastrado_por FOREIGN KEY (cadastrado_por) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
     CONSTRAINT fk_pagamentos_atualizado_por FOREIGN KEY (atualizado_por) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
     CONSTRAINT chk_pagamentos_valor CHECK (valor_pago >= 0),
+    CONSTRAINT chk_pagamentos_troco CHECK (valor_recebido IS NULL OR (troco IS NOT NULL AND troco >= 0 AND valor_recebido >= valor_pago)),
     INDEX idx_pagamentos_cliente (id_cliente),
     INDEX idx_pagamentos_data (pago_em)
 );

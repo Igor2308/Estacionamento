@@ -272,13 +272,11 @@ def test_desativar_e_reativar_veiculo(api):
 
 
 # ---------- vagas / mensalista ----------
-def test_mensalista_nao_registra_entrada(api):
+def test_mensalista_sem_vaga_vinculada_nao_entra(api):
     cid = criar_cliente(api, modalidade="MENSALISTA")
     criar_veiculo(api, cid, "AAA1111")
-    vid = api.post("/api/vagas", json={"codigo": "m1", "tipo_vaga": "MENSALISTA", "tipo_veiculo": "CARRO"}).get_json()["id_vaga"]
-    assert api.post(f"/api/vagas/{vid}/vincular", json={"id_cliente": cid}).status_code == 200
     r = api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"})
-    assert r.status_code == 409 and "Mensalistas" in r.get_json()["erro"]
+    assert r.status_code == 409 and "não tem vaga vinculada" in r.get_json()["erro"]
     assert sql("SELECT COUNT(*) n FROM movimentacoes", fetch=True)[0]["n"] == 0
 
 
@@ -294,7 +292,9 @@ def _abertas(api):
 
 
 def _pagar_abertas(api):
-    for cb in _abertas(api):
+    # pagar uma mensalidade quita as do mesmo cliente e período; repete até não sobrar nada
+    while _abertas(api):
+        cb = _abertas(api)[0]
         r = api.post("/api/pagamentos", json={"tipo_pagamento": "MENSALIDADE", "forma_pagamento": "PIX",
                                               "id_cobranca": cb["id_cobranca"]})
         assert r.status_code == 201, r.get_json()
@@ -572,10 +572,11 @@ def test_horista_abertas_traz_tempo_em_segundos_do_servidor(api):
 
 def test_paginas_do_frontend_sao_servidas(api):
     """Logado, todas as telas abrem; os scripts continuam públicos."""
-    for pagina in ("login", "dashboard", "clientes", "veiculos", "vagas", "movimentacoes", "pagamentos", "tarifas"):
+    # a tela de login encerra a sessão ao abrir, então ela é a última
+    for pagina in ("dashboard", "clientes", "veiculos", "vagas", "movimentacoes", "pagamentos", "tarifas", "login"):
         r = api.get(f"/app/html/{pagina}.html")
         assert r.status_code == 200 and b"<html" in r.data, pagina
-    for arq in ("main", "clientes", "veiculos", "vagas", "movimentacoes", "pagamentos", "dashboard", "tarifas"):
+    for arq in ("main", "ui", "clientes", "veiculos", "vagas", "movimentacoes", "pagamentos", "dashboard", "tarifas"):
         assert api.get(f"/app/js/{arq}.js").status_code == 200, arq
 
 
@@ -588,3 +589,292 @@ def test_logout_e_voltar_para_o_login_exigem_novo_login(api):
     assert api.get("/app/html/dashboard.html").status_code == 200
     api.post("/api/auth/logout")
     assert api.get("/app/html/dashboard.html").status_code == 302
+
+
+# =====================================================================================
+# Novidades: validações, paginação/busca, vaga no cadastro, país, troco e "quem registrou"
+# =====================================================================================
+def test_validacoes_de_formato_no_cadastro_do_cliente(api):
+    assert api.post("/api/clientes", json=dados_cliente(telefone="(11) 9abcd-5678")).status_code == 400  # letras
+    assert api.post("/api/clientes", json=dados_cliente(cpf="529.982.247-2a")).status_code == 400          # letra no CPF
+    assert api.post("/api/clientes", json=dados_cliente(nome="Maria 123")).status_code == 400              # número no nome
+    assert api.post("/api/clientes", json=dados_cliente(telefone="(11) 51234-5678")).status_code == 400   # celular sem 9
+    assert api.post("/api/clientes", json=dados_cliente(endereco={**ENDERECO, "estado": "XX"})).status_code == 400
+    assert api.post("/api/clientes", json=dados_cliente(endereco={**ENDERECO, "estado": "S1"})).status_code == 400
+    assert api.post("/api/clientes", json=dados_cliente(endereco={**ENDERECO, "cep": "0100100a"})).status_code == 400
+    assert api.post("/api/clientes", json=dados_cliente(endereco={**ENDERECO, "cidade": "S4o Paulo"})).status_code == 400
+    assert api.post("/api/clientes", json=dados_cliente()).status_code == 201
+
+
+def test_telefone_e_cep_sao_guardados_normalizados(api):
+    cid = criar_cliente(api, endereco={**ENDERECO, "cep": "01001000"})
+    c = sql("SELECT telefone FROM clientes WHERE id_cliente=%s", (cid,), fetch=True)[0]
+    e = sql("SELECT cep, pais FROM enderecos WHERE id_cliente=%s", (cid,), fetch=True)[0]
+    assert c["telefone"] == "11912345678"
+    assert e["cep"] == "01001-000" and e["pais"] == "Brasil"
+
+
+def test_endereco_com_pais_estrangeiro(api):
+    cid = criar_cliente(api)
+    base = {**ENDERECO, "id_cliente": cid, "pais": "Portugal", "cep": "1100-148", "estado": "LX", "cidade": "Lisboa"}
+    assert api.post("/api/enderecos", json=base).status_code == 201
+    assert api.post("/api/enderecos", json={**base, "pais": "Portugal 2"}).status_code == 400
+    # no Brasil o CEP precisa ter 8 dígitos e a UF precisa existir
+    assert api.post("/api/enderecos", json={**base, "pais": "Brasil"}).status_code == 400
+    ends = api.get(f"/api/enderecos?id_cliente={cid}").get_json()["dados"]
+    assert sorted(e["pais"] for e in ends) == ["Brasil", "Portugal"]
+    # atualizar só o CEP de um endereço estrangeiro usa a regra do país já salvo
+    id_pt = [e["id_endereco"] for e in ends if e["pais"] == "Portugal"][0]
+    assert api.put(f"/api/enderecos/{id_pt}", json={"cep": "4000-001"}).status_code == 200
+    assert api.put(f"/api/enderecos/{id_pt}", json={"pais": "Brasil"}).status_code == 400
+
+
+def test_nao_deixa_excluir_o_ultimo_endereco_e_promove_outro_principal(api):
+    cid = criar_cliente(api)
+    unico = api.get(f"/api/enderecos?id_cliente={cid}").get_json()["dados"][0]["id_endereco"]
+    assert api.delete(f"/api/enderecos/{unico}").status_code == 409
+    outro = api.post("/api/enderecos", json={**ENDERECO, "id_cliente": cid, "numero": "2"}).get_json()["id_endereco"]
+    assert api.delete(f"/api/enderecos/{unico}").status_code == 200
+    restante = sql("SELECT id_endereco, principal FROM enderecos WHERE id_cliente=%s", (cid,), fetch=True)
+    assert restante[0]["id_endereco"] == outro and restante[0]["principal"] == 1
+
+
+def test_cpf_cnpj_e_tipo_nao_podem_ser_alterados(api):
+    cid = criar_cliente(api, cpf=CPF_OK)
+    assert api.put(f"/api/clientes/{cid}", json={"cpf": cpf_novo()}).status_code == 400
+    assert api.put(f"/api/clientes/{cid}", json={"tipo_pessoa": "JURIDICA"}).status_code == 400
+    # mandar o mesmo CPF (como a tela pode fazer) é ignorado e o resto é salvo
+    r = api.put(f"/api/clientes/{cid}", json={"cpf": "529.982.247-25", "nome": "Maria Souza"})
+    assert r.status_code == 200
+    linha = sql("SELECT cpf, nome FROM clientes WHERE id_cliente=%s", (cid,), fetch=True)[0]
+    assert linha["cpf"] == "52998224725" and linha["nome"] == "Maria Souza"
+
+
+def test_listas_paginadas_50_por_pagina_e_busca_por_nome_ou_cpf(api):
+    con = conectar_banco(); cur = con.cursor()
+    for i in range(120):
+        cur.execute("INSERT INTO clientes (nome, tipo_pessoa, cpf, telefone, modalidade) VALUES (%s,'FISICA',%s,'11912345678','HORISTA')",
+                    (f"Cliente {i:03d}", cpf_novo()))
+    con.commit(); cur.close(); con.close()
+
+    p1 = api.get("/api/clientes?pagina=1").get_json()
+    assert len(p1["dados"]) == 50 and p1["total"] == 120 and p1["total_paginas"] == 3 and p1["pagina"] == 1
+    p3 = api.get("/api/clientes?pagina=3").get_json()
+    assert len(p3["dados"]) == 20 and p3["dados"][0]["nome"] == "Cliente 100"
+    assert api.get("/api/clientes?pagina=99").get_json()["pagina"] == 3          # página inexistente vai para a última
+    assert len(api.get("/api/clientes").get_json()["dados"]) == 120              # sem pagina: lista completa (compatível)
+
+    por_nome = api.get("/api/clientes?pagina=1&busca=cliente 05").get_json()
+    assert por_nome["total"] == 10 and all("Cliente 05" in c["nome"] for c in por_nome["dados"])
+    cpf = api.get("/api/clientes?pagina=2").get_json()["dados"][0]["cpf"]
+    formatado = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+    por_cpf = api.get(f"/api/clientes?pagina=1&busca={formatado}").get_json()
+    assert por_cpf["total"] == 1 and por_cpf["dados"][0]["cpf"] == cpf
+    assert api.get("/api/clientes?pagina=1&busca=%25").get_json()["total"] == 0   # % não vira curinga
+
+
+def test_busca_de_veiculos_por_placa_e_cliente(api):
+    cliente_com_veiculo(api, "ABC1234", nome="Joana Lima")
+    cliente_com_veiculo(api, "XYZ9A87", nome="Pedro Alves")
+    r = api.get("/api/veiculos?pagina=1&busca=xyz").get_json()
+    assert r["total"] == 1 and r["dados"][0]["placa"] == "XYZ9A87"
+    r = api.get("/api/veiculos?pagina=1&busca=joana").get_json()
+    assert r["total"] == 1 and r["dados"][0]["placa"] == "ABC1234"
+    assert api.get("/api/veiculos?pagina=1&ativo=1&modalidade=HORISTA").get_json()["total"] == 2
+
+
+def test_cadastro_de_mensalista_ja_vincula_a_vaga_escolhida(api):
+    vid = api.post("/api/vagas", json={"codigo": "M1", "tipo_vaga": "MENSALISTA", "tipo_veiculo": "CARRO"}).get_json()["id_vaga"]
+    livres = api.get("/api/vagas?livres=1&pagina=1").get_json()
+    assert livres["total"] == 1
+    r = api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vaga=vid))
+    assert r.status_code == 201, r.get_json()
+    cid = r.get_json()["id_cliente"]
+    assert sql("SELECT id_cliente FROM vagas WHERE id_vaga=%s", (vid,), fetch=True)[0]["id_cliente"] == cid
+    assert len(api.get("/api/pagamentos/cobrancas?status=ABERTA").get_json()["dados"]) == 1  # mensalidade já gerada
+    assert api.get("/api/vagas?livres=1&pagina=1").get_json()["total"] == 0
+
+
+def test_cadastro_com_vaga_invalida_nao_deixa_cliente_pela_metade(api):
+    vid = api.post("/api/vagas", json={"codigo": "M1", "tipo_vaga": "MENSALISTA", "tipo_veiculo": "CARRO"}).get_json()["id_vaga"]
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="HORISTA", id_vaga=vid)).status_code == 400
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vaga=999999)).status_code == 404
+    rot = api.post("/api/vagas", json={"codigo": "R1", "tipo_vaga": "ROTATIVA", "tipo_veiculo": "CARRO"}).get_json()["id_vaga"]
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vaga=rot)).status_code == 400
+    assert sql("SELECT COUNT(*) n FROM clientes", fetch=True)[0]["n"] == 0
+    assert sql("SELECT COUNT(*) n FROM enderecos", fetch=True)[0]["n"] == 0
+    # vaga já ocupada
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vaga=vid)).status_code == 201
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vaga=vid)).status_code == 409
+    assert sql("SELECT COUNT(*) n FROM clientes", fetch=True)[0]["n"] == 1
+
+
+def test_vagas_validam_codigo_e_setor(api):
+    assert api.post("/api/vagas", json={"codigo": "A 1!", "tipo_veiculo": "CARRO"}).status_code == 400
+    assert api.post("/api/vagas", json={"codigo": "A1", "setor": "@@", "tipo_veiculo": "CARRO"}).status_code == 400
+    assert api.post("/api/vagas", json={"codigo": "a-1", "setor": "Bloco A", "tipo_veiculo": "CARRO"}).status_code == 201
+    assert api.get("/api/vagas?pagina=1&busca=bloco").get_json()["total"] == 1
+
+
+def test_telas_mostram_quem_registrou_e_quando(api):
+    cid = criar_cliente(api)
+    criar_veiculo(api, cid, "ABC1234")
+    api.post("/api/vagas", json={"codigo": "R1", "tipo_vaga": "ROTATIVA", "tipo_veiculo": "CARRO"})
+    api.post("/api/tarifas", json={"tipo_veiculo": "CARRO", "mensalidade_por_vaga": "310", "valor_periodo_30_min": "6", "vigencia_inicio": "2031-01-01"})
+    ent = api.post("/api/movimentacoes/entrada", json={"placa": "ABC1234"}).get_json()["id_movimentacao"]
+    api.post(f"/api/movimentacoes/{ent}/saida")
+    for rota in ("/api/veiculos", "/api/vagas", "/api/tarifas"):
+        linha = api.get(rota + "?pagina=1").get_json()["dados"][0]
+        assert linha["cadastrado_por_nome"] == "Operador" and linha["cadastrado_em"], rota
+    mov = api.get("/api/movimentacoes?fechadas=1&pagina=1").get_json()["dados"][0]
+    assert mov["entrada_por_nome"] == "Operador" and mov["saida_por_nome"] == "Operador"
+    api.post("/api/pagamentos", json={"tipo_pagamento": "OUTRO", "valor_pago": "10", "forma_pagamento": "PIX"})
+    assert api.get("/api/pagamentos?pagina=1").get_json()["dados"][0]["cadastrado_por_nome"] == "Operador"
+
+
+def test_pagamento_em_dinheiro_exige_valor_recebido_e_calcula_troco(api):
+    base = {"tipo_pagamento": "OUTRO", "valor_pago": "37,50", "forma_pagamento": "DINHEIRO"}
+    assert api.post("/api/pagamentos", json=base).status_code == 400                                  # sem valor recebido
+    assert api.post("/api/pagamentos", json={**base, "valor_recebido": "30"}).status_code == 400     # entregou menos
+    assert api.post("/api/pagamentos", json={**base, "valor_recebido": "abc"}).status_code == 400
+    r = api.post("/api/pagamentos", json={**base, "valor_recebido": "50,00"})
+    assert r.status_code == 201 and r.get_json()["troco"] == "12.50"
+    linha = sql("SELECT valor_pago, valor_recebido, troco FROM pagamentos", fetch=True)[0]
+    assert (float(linha["valor_pago"]), float(linha["valor_recebido"]), float(linha["troco"])) == (37.5, 50.0, 12.5)
+    # outras formas não guardam recebido/troco
+    r = api.post("/api/pagamentos", json={"tipo_pagamento": "OUTRO", "valor_pago": "5", "forma_pagamento": "PIX", "valor_recebido": "99"})
+    assert r.status_code == 201 and r.get_json()["troco"] is None
+
+
+def test_resumo_do_dinheiro_fisico_do_dia(api):
+    api.post("/api/pagamentos", json={"tipo_pagamento": "OUTRO", "valor_pago": "37,50", "forma_pagamento": "DINHEIRO", "valor_recebido": "50"})
+    api.post("/api/pagamentos", json={"tipo_pagamento": "OUTRO", "valor_pago": "10", "forma_pagamento": "DINHEIRO", "valor_recebido": "10"})
+    api.post("/api/pagamentos", json={"tipo_pagamento": "OUTRO", "valor_pago": "99", "forma_pagamento": "PIX"})
+    r = api.get("/api/pagamentos/resumo-dinheiro").get_json()
+    assert (r["quantidade"], float(r["recebido"]), float(r["troco"]), float(r["liquido"])) == (2, 60.0, 12.5, 47.5)
+
+
+def test_pagamento_horista_em_dinheiro_e_lista_de_pendentes(api):
+    cliente_com_veiculo(api, "ABC1234")
+    api.post("/api/vagas", json={"codigo": "R1", "tipo_vaga": "ROTATIVA", "tipo_veiculo": "CARRO"})
+    ent = api.post("/api/movimentacoes/entrada", json={"placa": "ABC1234"}).get_json()["id_movimentacao"]
+    api.post(f"/api/movimentacoes/{ent}/saida")
+    pend = api.get("/api/pagamentos/pendentes?pagina=1&busca=abc").get_json()
+    assert pend["total"] == 1 and pend["dados"][0]["id_movimentacao"] == ent
+    assert api.get(f"/api/pagamentos/pendentes?id_movimentacao={ent}").get_json()["dados"][0]["placa_registrada"] == "ABC1234"
+    r = api.post("/api/pagamentos", json={"tipo_pagamento": "HORISTA", "id_movimentacao": ent, "forma_pagamento": "DINHEIRO", "valor_recebido": "20"})
+    assert r.status_code == 201 and r.get_json()["troco"] == "15.00"      # 1 período de R$ 5,00
+    assert api.get("/api/pagamentos/pendentes?pagina=1").get_json()["total"] == 0
+
+
+def test_resumo_do_painel_vem_pronto_do_servidor(api):
+    cliente_com_veiculo(api, "ABC1234")
+    api.post("/api/vagas", json={"codigo": "R1", "tipo_vaga": "ROTATIVA", "tipo_veiculo": "CARRO"})
+    api.post("/api/movimentacoes/entrada", json={"placa": "ABC1234"})
+    r = api.get("/api/dashboard/resumo").get_json()
+    carro = [t for t in r["por_tipo"] if t["tipo"] == "CARRO"][0]
+    assert r["clientes_ativos"] == 1 and r["veiculos_no_patio"] == 1
+    assert carro["total"] == 1 and carro["ocupadas"] == 1 and r["tarifas"]["CARRO"]["valor_periodo_30_min"] == "5.00"
+
+
+# =====================================================================================
+# Mensalista: várias vagas no cadastro, cobrança somada e entrada/saída controlada por vaga
+# =====================================================================================
+def _vaga(api, codigo, tipo="CARRO", tipo_vaga="MENSALISTA"):
+    r = api.post("/api/vagas", json={"codigo": codigo, "tipo_vaga": tipo_vaga, "tipo_veiculo": tipo})
+    assert r.status_code == 201, r.get_json()
+    return r.get_json()["id_vaga"]
+
+
+def _mensalista_com_vagas(api, placas, n_vagas, tipo="CARRO"):
+    vagas = [_vaga(api, f"M{i + 1}", tipo) for i in range(n_vagas)]
+    r = api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vagas=vagas))
+    assert r.status_code == 201, r.get_json()
+    cid = r.get_json()["id_cliente"]
+    for placa in placas:
+        criar_veiculo(api, cid, placa, tipo_veiculo=tipo)
+    return cid, vagas
+
+
+def test_cadastro_de_mensalista_com_varias_vagas_gera_o_valor_de_todas(api):
+    cid, vagas = _mensalista_com_vagas(api, [], 2)
+    donos = sql("SELECT id_cliente FROM vagas", fetch=True)
+    assert [d["id_cliente"] for d in donos] == [cid, cid]
+    assert len(_abertas(api)) == 2                                   # uma cobrança por vaga...
+    grupo = api.get("/api/pagamentos/cobrancas?status=ABERTA&agrupar=1&pagina=1").get_json()["dados"]
+    assert len(grupo) == 1 and grupo[0]["quantidade_vagas"] == 2     # ...mas o cliente vê uma linha só
+    assert grupo[0]["valor"] == "600.00" and grupo[0]["codigo_vaga"] == "M1, M2"
+    r = api.post("/api/pagamentos", json={"tipo_pagamento": "MENSALIDADE", "forma_pagamento": "PIX",
+                                          "id_cobranca": grupo[0]["id_cobranca"]})
+    assert r.status_code == 201 and r.get_json()["valor_pago"] == "600.00" and r.get_json()["quantidade_vagas_cobradas"] == 2
+    assert _abertas(api) == []
+    p = sql("SELECT quantidade_vagas_cobradas, valor_unitario_aplicado, valor_pago FROM pagamentos", fetch=True)[0]
+    assert p["quantidade_vagas_cobradas"] == 2 and float(p["valor_unitario_aplicado"]) == 300.0
+
+
+def test_cadastro_com_varias_vagas_e_tudo_ou_nada(api):
+    v1, v2 = _vaga(api, "M1"), _vaga(api, "M2")
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vagas=[v1, v1])).status_code == 400
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vagas=[v1, 999999])).status_code == 404
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="HORISTA", id_vagas=[v1])).status_code == 400
+    assert sql("SELECT COUNT(*) n FROM clientes", fetch=True)[0]["n"] == 0
+    assert sql("SELECT COUNT(*) n FROM vagas WHERE id_cliente IS NOT NULL", fetch=True)[0]["n"] == 0
+    assert api.post("/api/clientes", json=dados_cliente(modalidade="MENSALISTA", id_vagas=[v1, v2])).status_code == 201
+
+
+def test_mensalista_entra_e_sai_sem_cobranca_por_entrada(api):
+    cid, _ = _mensalista_com_vagas(api, ["AAA1111"], 1)
+    r = api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"})
+    assert r.status_code == 201 and r.get_json()["modalidade"] == "MENSALISTA"
+    mid = r.get_json()["id_movimentacao"]
+    dentro = api.get("/api/movimentacoes/abertas?apenas_mensalistas=1&pagina=1").get_json()
+    assert dentro["total"] == 1 and api.get("/api/movimentacoes/abertas?apenas_horistas=1&pagina=1").get_json()["total"] == 0
+    s = api.post(f"/api/movimentacoes/{mid}/saida")
+    assert s.status_code == 200 and float(s.get_json()["valor_total"]) == 0
+    assert api.get("/api/pagamentos/pendentes?pagina=1").get_json()["total"] == 0   # nada a cobrar na saída
+
+
+def test_cada_vaga_comporta_um_carro_do_mensalista_por_vez(api):
+    cid, _ = _mensalista_com_vagas(api, ["AAA1111", "BBB2222", "CCC3333"], 2)
+    e1 = api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"})
+    e2 = api.post("/api/movimentacoes/entrada", json={"placa": "BBB2222"})
+    assert e1.status_code == 201 and e2.status_code == 201
+    r = api.post("/api/movimentacoes/entrada", json={"placa": "CCC3333"})          # terceiro carro, só 2 vagas
+    assert r.status_code == 409 and "Todas as 2 vaga(s)" in r.get_json()["erro"] and "AAA1111" in r.get_json()["erro"]
+    assert api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"}).status_code == 409  # mesma placa já dentro
+    api.post(f"/api/movimentacoes/{e1.get_json()['id_movimentacao']}/saida")      # libera uma vaga
+    assert api.post("/api/movimentacoes/entrada", json={"placa": "CCC3333"}).status_code == 201
+
+
+def test_mensalista_so_entra_com_veiculo_do_tipo_da_sua_vaga(api):
+    cid, _ = _mensalista_com_vagas(api, ["AAA1111"], 1, "CARRO")
+    criar_veiculo(api, cid, "MOT1A23", tipo_veiculo="MOTO")
+    r = api.post("/api/movimentacoes/entrada", json={"placa": "MOT1A23"})
+    assert r.status_code == 409 and "para moto" in r.get_json()["erro"]
+
+
+def test_mensalista_nao_ocupa_vaga_rotativa_e_horista_nao_ocupa_a_dele(api):
+    _mensalista_com_vagas(api, ["AAA1111"], 1)
+    api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"})
+    cliente_com_veiculo(api, "HOR1234")            # horista, e não há vaga rotativa
+    r = api.post("/api/movimentacoes/entrada", json={"placa": "HOR1234"})
+    assert r.status_code == 409 and "rotativas" in r.get_json()["erro"]
+
+
+def test_nao_tira_a_vaga_com_o_carro_do_mensalista_dentro(api):
+    cid, vagas = _mensalista_com_vagas(api, ["AAA1111"], 1)
+    _pagar_abertas(api)
+    mid = api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"}).get_json()["id_movimentacao"]
+    r = api.post(f"/api/movimentacoes/mensalistas/vagas/{vagas[0]}/saida")
+    assert r.status_code == 409 and "AAA1111" in r.get_json()["erro"]
+    assert api.post(f"/api/vagas/{vagas[0]}/desvincular").status_code == 409
+    api.post(f"/api/movimentacoes/{mid}/saida")
+    assert api.post(f"/api/movimentacoes/mensalistas/vagas/{vagas[0]}/saida").status_code == 200
+
+
+def test_painel_conta_vaga_de_mensalista_ocupada_so_com_carro_dentro(api):
+    cid, _ = _mensalista_com_vagas(api, ["AAA1111"], 2)
+    carro = lambda: [t for t in api.get("/api/dashboard/resumo").get_json()["por_tipo"] if t["tipo"] == "CARRO"][0]
+    assert carro()["total"] == 2 and carro()["ocupadas"] == 0 and carro()["mensalistas_vinculadas"] == 2
+    api.post("/api/movimentacoes/entrada", json={"placa": "AAA1111"})
+    assert carro()["ocupadas"] == 1

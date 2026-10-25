@@ -1,11 +1,18 @@
 <!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vagas • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
 <body><main><h1>Vagas</h1>
-<div class="card"><h2>Nova vaga</h2><form class="linha" id="form">
-<label>Código<input name="codigo" required placeholder="A01"></label><label>Setor<input name="setor"></label>
-<label>Tipo<select name="tipo_vaga"><option value="ROTATIVA">Rotativa (horistas)</option><option value="MENSALISTA">Mensalista (reservada)</option></select></label>
-<label>Veículo da vaga<select name="tipo_veiculo" required><option value="">Selecione...</option><option value="CARRO">Carro</option><option value="MOTO">Moto</option><option value="VAN">Van</option><option value="CAMINHAO">Caminhão</option><option value="OUTRO">Outro</option></select></label>
-<button>Cadastrar</button></form></div>
-<div class="card"><h2>Vagas cadastradas</h2><div class="tabela-rolagem"><table>
-<thead><tr><th>Código</th><th>Setor</th><th>Tipo</th><th>Veículo</th><th>Cliente vinculado</th><th>Status</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div></div></main>
-<script src="../js/main.js"></script><script src="../js/vagas.js"></script></body></html>
+<div class="card"><h2>Nova vaga</h2>
+<p class="vazio" style="padding:0 0 .6rem">Preencha na ordem: cada campo só é liberado quando o anterior estiver correto.</p>
+<form id="form" novalidate autocomplete="off"><div class="linha-campos">
+<label>Código *<input id="codigo" name="codigo" placeholder="A01" style="text-transform:uppercase"></label>
+<label>Setor (opcional)<span class="rotulo-opcional"></span><input id="setor" name="setor"></label>
+<label>Tipo *<select id="tipo_vaga" name="tipo_vaga"><option value="ROTATIVA">Rotativa (horistas)</option><option value="MENSALISTA">Mensalista (reservada)</option></select></label>
+<label>Veículo da vaga *<select id="tipo_veiculo" name="tipo_veiculo"><option value="">Selecione...</option><option value="CARRO">Carro</option><option value="MOTO">Moto</option><option value="VAN">Van</option><option value="CAMINHAO">Caminhão</option><option value="OUTRO">Outro</option></select></label>
+</div>
+<div style="margin-top:1rem"><button id="salvar" disabled>Cadastrar</button></div></form></div>
+<div class="card"><h2>Vagas cadastradas</h2>
+<div class="busca"><input id="busca" type="search" placeholder="Buscar por código, setor ou cliente…" aria-label="Buscar vagas" autocomplete="off"></div>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Código</th><th>Setor</th><th>Tipo</th><th>Veículo</th><th>Cliente vinculado</th><th>Status</th><th>Registro</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div>
+<div id="paginacao"></div></div></main>
+<script src="../js/main.js"></script><script src="../js/ui.js"></script><script src="../js/vagas.js"></script></body></html>

@@ -52,3 +52,27 @@ def test_pagamento_rejeita_tipo_invalido_sem_banco():
     resposta, status = registrar_pagamento({"tipo_pagamento": "INVALIDO"})
     assert status == 400
     assert "tipo de pagamento" in resposta["erro"].lower()
+
+
+from utils.validators import validar_telefone, validar_cep, validar_uf, validar_somente_letras
+from utils.paginacao import ler_pagina, escapar_like
+
+
+def test_telefone_nao_aceita_letras_e_confere_ddd_e_celular():
+    assert validar_telefone("(11) 91234-5678") and validar_telefone("11 3123-4567")
+    assert not validar_telefone("(11) 9abcd-5678")
+    assert not validar_telefone("(01) 91234-5678")
+    assert not validar_telefone("(11) 51234-5678")
+    assert not validar_telefone("123")
+
+
+def test_cep_uf_e_nomes():
+    assert validar_cep("01001-000") and validar_cep("01001000")
+    assert not validar_cep("0100100a") and not validar_cep("1234")
+    assert validar_uf("sp") and not validar_uf("XX")
+    assert validar_somente_letras("José da Silva") and not validar_somente_letras("Maria 2")
+
+
+def test_paginacao_helpers():
+    assert ler_pagina(None) is None and ler_pagina("3") == 3 and ler_pagina("-5") == 1 and ler_pagina("x") == 1
+    assert escapar_like("50%_x") == "50\\%\\_x"

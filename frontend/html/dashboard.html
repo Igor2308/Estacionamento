@@ -1,17 +1,21 @@
 <!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Painel • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
-<body><main><h1>Painel</h1>
-<div class="painel"><div>
-<h3 style="margin-top:0">Vagas</h3>
-<div class="grid" id="kpis"></div>
+<body><main class="largo"><h1>Painel</h1>
+<nav class="acoes" aria-label="Ações rápidas">
+<a class="acao azul" href="clientes.html?novo=1"><span class="icone">👤</span><b>Novo cliente</b><small>Cadastrar cliente</small></a>
+<a class="acao roxo" href="veiculos.html?novo=1"><span class="icone">🚗</span><b>Novo veículo</b><small>Cadastrar veículo</small></a>
+<a class="acao ciano" href="vagas.html?novo=1"><span class="icone">🅿️</span><b>Nova vaga</b><small>Cadastrar vaga</small></a>
+<a class="acao verde" href="movimentacoes.html?novo=1"><span class="icone">⬇️</span><b>Registrar entrada</b><small>Horista ou mensalista</small></a>
+<a class="acao laranja" href="movimentacoes.html#saida"><span class="icone">⬆️</span><b>Registrar saída</b><small>Horista ou mensalista</small></a>
+<a class="acao rosa" href="pagamentos.html"><span class="icone">💳</span><b>Pagamento</b><small>Receber e dar troco</small></a>
+</nav>
+<div class="grid kpis6" id="kpis"></div>
 <h3>Vagas por tipo de veículo</h3>
-<div class="grid" id="tipos"></div>
-<h3>Resumo</h3>
-<div class="grid" id="resumo"></div>
-<div class="card" style="margin-top:1rem"><h2>Veículos no pátio agora</h2>
-<div class="tabela-rolagem"><table><thead><tr><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Entrada</th></tr></thead><tbody id="patio"></tbody></table></div></div>
-</div>
-<aside class="lateral"><div class="card"><h2>Tarifas atuais</h2><div id="tarifas"></div>
-<p class="vazio" style="padding:.5rem 0 0;font-size:.78rem">Valor de cada 30 min e mensalidade por vaga.</p></div></aside>
+<div class="grid tipos5" id="tipos"></div>
+<div class="painel2">
+<div class="card"><h2>Veículos no pátio agora</h2>
+<div class="tabela-rolagem"><table><thead><tr><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Modalidade</th><th>Entrada</th></tr></thead><tbody id="patio"></tbody></table></div><p class="vazio" id="patioMais" style="padding:.6rem 0 0"></p></div>
+<aside class="card"><h2>Tarifas atuais</h2><div id="tarifas"></div>
+<p class="vazio" style="padding:.5rem 0 0;font-size:.78rem">Valor de cada 30 min e mensalidade por vaga.</p></aside>
 </div></main>
-<script src="../js/main.js"></script><script src="../js/dashboard.js"></script></body></html>
+<script src="../js/main.js"></script><script src="../js/ui.js"></script><script src="../js/dashboard.js"></script></body></html>

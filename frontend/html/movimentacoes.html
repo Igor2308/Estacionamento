@@ -1,17 +1,33 @@
 <!doctype html><html lang="pt-BR" class="privada"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Entradas e saídas • Estacionamento</title><link rel="stylesheet" href="../css/style.css"></head>
 <body><main><h1>Entradas e saídas</h1>
-<div class="card"><h2>Registrar entrada (horistas)</h2><form class="linha" id="form">
-<label>Placa (somente cadastradas)<input name="placa" required maxlength="8" placeholder="ABC1D23" list="placas" autocomplete="off" autofocus style="text-transform:uppercase"></label><datalist id="placas"></datalist><button>Registrar entrada</button></form>
-<p class="vazio" style="padding:.6rem 0 0">A entrada só é aceita para placas cadastradas. Mensalistas usam a vaga como quiserem e não registram entrada.</p></div>
-<div class="card"><h2>Registrar saída</h2>
-<div class="abas"><button type="button" class="ativa" id="abaHorista">Horistas</button><button type="button" id="abaMensalista">Mensalistas</button></div>
-<div id="painelHorista"><div class="tabela-rolagem"><table>
-<thead><tr><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Entrada</th><th>Tempo</th><th></th></tr></thead><tbody id="abertas"></tbody></table></div></div>
-<div id="painelMensalista" class="oculto">
-<p class="vazio" style="padding:0 0 .6rem">A saída de um mensalista <b>cancela o plano daquela vaga</b>, uma vaga por vez. Só é possível quando não há mensalidade em aberto na tela <a href="pagamentos.html">Pagamentos</a>. Ao cancelar a última vaga do cliente, ele passa a ser horista.</p>
+<div class="card"><h2>Registrar entrada</h2>
+<form id="form" novalidate autocomplete="off"><div class="linha-campos">
+<label class="largo">Placa (somente cadastradas) *<div id="comboPlaca"></div></label>
+<div style="align-self:end"><button id="salvar" disabled>Registrar entrada</button></div></div></form>
+<p class="vazio" style="padding:.6rem 0 0">A entrada só é aceita para placas cadastradas. Digite a placa (ou o nome do cliente) e escolha na lista. <b>Horistas</b> usam as vagas rotativas do tipo do veículo. <b>Mensalistas</b> precisam ter vaga vinculada para o tipo do veículo, e cada vaga comporta um veículo do cliente por vez.</p></div>
+<div class="card" id="saida"><h2>Registrar saída</h2>
+<div class="abas"><button type="button" class="ativa" id="abaHorista">Horistas</button><button type="button" id="abaMensPatio">Mensalistas no pátio</button><button type="button" id="abaMensalista">Cancelar plano mensal</button></div>
+<div id="painelHorista">
+<div class="busca"><input id="buscaAbertas" type="search" placeholder="Buscar por placa, cliente ou CPF/CNPJ…" aria-label="Buscar horistas no pátio" autocomplete="off"></div>
 <div class="tabela-rolagem"><table>
-<thead><tr><th>Cliente</th><th>Vaga</th><th>Veículo</th><th>Em aberto</th><th></th></tr></thead><tbody id="mensalistas"></tbody></table></div></div></div>
-<div class="card"><h2>Histórico</h2><div class="tabela-rolagem"><table>
-<thead><tr><th>Placa</th><th>Cliente</th><th>Entrada</th><th>Saída</th><th>Períodos</th><th>Valor</th></tr></thead><tbody id="historico"></tbody></table></div></div></main>
-<script src="../js/main.js"></script><script src="../js/movimentacoes.js"></script></body></html>
+<thead><tr><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Entrada</th><th>Entrada registrada por</th><th>Tempo</th><th></th></tr></thead><tbody id="abertas"></tbody></table></div>
+<div id="pagAbertas"></div></div>
+<div id="painelMensPatio" class="oculto">
+<p class="vazio" style="padding:0 0 .6rem">A saída de mensalista só encerra a permanência e libera a vaga para outro veículo do cliente. Não há cobrança na saída: a mensalidade é paga à parte, em <a href="pagamentos.html">Pagamentos</a>.</p>
+<div class="busca"><input id="buscaMensPatio" type="search" placeholder="Buscar por placa, cliente ou CPF/CNPJ…" aria-label="Buscar mensalistas no pátio" autocomplete="off"></div>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Placa</th><th>Tipo</th><th>Cliente</th><th>Entrada</th><th>Entrada registrada por</th><th>Tempo</th><th></th></tr></thead><tbody id="mensPatio"></tbody></table></div>
+<div id="pagMensPatio"></div></div>
+<div id="painelMensalista" class="oculto">
+<p class="vazio" style="padding:0 0 .6rem">Aqui você <b>cancela o plano de uma vaga</b> (uma por vez). Só é possível quando não há mensalidade em aberto em <a href="pagamentos.html">Pagamentos</a> e o veículo do cliente não está no estacionamento. Ao cancelar a última vaga do cliente, ele passa a ser horista.</p>
+<div class="busca"><input id="buscaMensalistas" type="search" placeholder="Buscar por cliente, CPF/CNPJ ou vaga…" aria-label="Buscar mensalistas" autocomplete="off"></div>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Cliente</th><th>Vaga</th><th>Veículo</th><th>Em aberto</th><th></th></tr></thead><tbody id="mensalistas"></tbody></table></div>
+<div id="pagMensalistas"></div></div></div>
+<div class="card"><h2>Histórico</h2>
+<div class="busca"><input id="buscaHistorico" type="search" placeholder="Buscar por placa, cliente ou CPF/CNPJ…" aria-label="Buscar no histórico" autocomplete="off"></div>
+<div class="tabela-rolagem"><table>
+<thead><tr><th>Placa</th><th>Cliente</th><th>Entrada</th><th>Saída</th><th>Períodos</th><th>Valor</th><th>Entrada por</th><th>Saída por</th></tr></thead><tbody id="historico"></tbody></table></div>
+<div id="pagHistorico"></div></div></main>
+<script src="../js/main.js"></script><script src="../js/ui.js"></script><script src="../js/movimentacoes.js"></script></body></html>
